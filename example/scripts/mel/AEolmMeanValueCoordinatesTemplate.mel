@@ -1,0 +1,12 @@
+global proc AEolmMeanValueCoordinatesTemplate( string $nodeName )
+{
+	editorTemplate -addExtraControls;
+	editorTemplate -suppress "input";
+	editorTemplate -suppress "caching";
+	editorTemplate -suppress "nodeState";
+	editorTemplate -suppress "cageMesh";
+	editorTemplate -suppress "objectMesh";
+	editorTemplate -suppress "enclose";	
+	editorTemplate -suppress "weightList";
+	editorTemplate -suppress "map64BitIndices";
+}

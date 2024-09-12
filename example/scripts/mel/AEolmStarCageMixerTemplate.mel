@@ -1,0 +1,33 @@
+global proc AEolmStarCageMixerTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+	editorTemplate -beginLayout "Smoothing" -collapse false;
+	editorTemplate -callCustom "StarCageDeformerInfluence"
+							   "StarCageDeformerInfluenceReplace"
+							   "influence";						   
+	editorTemplate -endLayout;
+	editorTemplate -addExtraControls;
+	editorTemplate -endScrollLayout;
+
+	// hide some unnecessary attributes
+	editorTemplate -suppress "input";
+	editorTemplate -suppress "caching";
+	editorTemplate -suppress "nodeState";
+	editorTemplate -suppress "objectMesh";
+	editorTemplate -suppress "bigCageMesh";
+	editorTemplate -suppress "mixedInput";
+	editorTemplate -suppress "connectionInfo";
+}
+
+global proc StarCageDeformerInfluence(string $attrName)
+{
+	floatSliderGrp -label "Influence" 
+		-field true -minValue 0 -maxValue 1 -step 0.01 -value 1.0 
+	influenceSliderGrp;
+	connectControl influenceSliderGrp $attrName;
+}
+
+global proc StarCageDeformerInfluenceReplace(string $attrName)
+{
+	connectControl influenceSliderGrp $attrName;
+}

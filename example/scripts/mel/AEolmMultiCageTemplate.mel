@@ -1,0 +1,107 @@
+global proc removeStarCageCutRow_olm(string $plugName, string $mainColumn) {
+	deleteUI $mainColumn;
+	removeMultiInstance -break 1 $plugName;		
+}
+
+global proc starCageToggle(string $attrName) {
+	int $val = `getAttr $attrName`;
+	$val = 1 - $val;
+	setAttr $attrName $val;
+}
+
+global proc createStarCageCut_olm(string $attr)
+{
+	// Find the next available index
+	int $nextAvailable = 0;
+
+	string $buffer;
+	if( `getAttr -s $attr` > 0 )
+	{
+		//	Get currently used indices
+		//	The return value looks like this: {rgb[0], rgb[0].r, rgb[0].g, rgb[0].b, rgb[3], ... }
+		string $multi[] = `listAttr -multi $attr`;
+
+		for($m in $multi)
+		{
+			//	Find index [n]
+			$buffer = match("\[[0-9]+\]", $m);
+
+			//	Find n. Use implicate data type conversion. string "15" is converted to int 15
+			int $index = match("[0-9]+", $buffer);
+			
+			if ( $index >= $nextAvailable )
+				$nextAvailable = $index + 1;
+		}
+	}
+
+	// Creat a new plug.
+	string $plugName = $attr + "[" + $nextAvailable + "]";
+
+	// Create a plug by accessing it
+	olmAddMultiInstance($attr, $nextAvailable);
+}
+
+global proc createStarCageCutsLayout_olm(string $sNodeAttr, string $sAttrName)
+{
+	columnLayout -adj 1 starCageCutsLayout_olm;
+		button -l "Add a Cut" -c ("createStarCageCut_olm(\""+$sNodeAttr+"\")");
+			string $multi[] = `listAttr -multi $sNodeAttr`; // ignore those deleted
+
+			for($m in $multi)
+			{
+				string $createdRow = `rowColumnLayout -nc 4 -cw 1 100 -cw 2 100 -cw 3 100 -cw 4 100`;
+				$buffer = match("\[[0-9]+\]", $m);
+				int $index = match("[0-9]+", $buffer);
+
+				text -label ("Cuts[" + $index + "]");
+
+				button -l "Highlight" -c ("  python(  \"import StarCageDeformer\"  );python(  \"StarCageDeformer.highlightCutStarCage_olm(\'"+$sNodeAttr+"\', " + $index +")\"  )  ");
+
+				int $val[] = `getAttr ($sNodeAttr + "[" + $index + "]")`;
+				if (size($val) > 0) {
+					button -l "Update" -c ("  python(  \"import StarCageDeformer\"  );python(  \"StarCageDeformer.updateCutStarCage_olm(\'"+$sNodeAttr+"\', " + $index +")\"  )  ");
+				} else {
+					button -l "Set" -c ("  python(  \"import StarCageDeformer\"  );python(  \"StarCageDeformer.updateCutStarCage_olm(\'"+$sNodeAttr+"\', " + $index +")\"  )  ");
+				}
+
+				string $plugName = $sNodeAttr+"["+$index+"]";
+				symbolButton -image "smallTrash.png" -command ("removeStarCageCutRow_olm " + $plugName + " " +$createdRow);
+				setParent ..;
+			}
+	setParent ..;
+}
+
+global proc replaceStarCageCutsLayout_olm(string $sNodeAttr, string $sAttrName)
+{
+	deleteUI -layout starCageCutsLayout_olm;
+	createStarCageCutsLayout_olm($sNodeAttr, $sAttrName);
+}
+
+global proc createStarCageUpdateLayout_olm(string $attrName) {
+	rowColumnLayout -nc 1 -cw 1 200 starCageUpdateButtonLayout;
+		button -label "Bind" -command  ("starCageToggle(\"" + $attrName + "\")");
+
+	setParent ..;
+}
+
+global proc replaceStarCageUpdateLayout_olm(string $attrName) {
+	deleteUI -layout starCageUpdateButtonLayout;
+	createStarCageUpdateLayout_olm($attrName);
+}
+
+global proc AEolmMultiCageTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+	editorTemplate -beginLayout "Parameters" -collapse false;
+	editorTemplate -addControl "envelope";
+	editorTemplate -addControl "localBind";	
+	editorTemplate -addControl "smoothness";	
+	editorTemplate -addControl "includeOutsider";
+	editorTemplate -ccu "createStarCageCutsLayout_olm" "replaceStarCageCutsLayout_olm" "cuts" "Cuts";
+
+	editorTemplate -ccu "createStarCageUpdateLayout_olm" "replaceStarCageUpdateLayout_olm" "dummy";
+	
+	editorTemplate -endLayout;
+	editorTemplate -addExtraControls;
+	editorTemplate -endScrollLayout;
+}

@@ -1,0 +1,54 @@
+global proc string[] olm_uis_cageDeformer()
+{
+	string $properties[] = olm_propertyList();
+	
+	olm_propertyListSet("CREATE_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	olm_propertyListSet("CREATE_CAGE:MENU_ITEM:PROC", "olm_ui_createCageDeformer", $properties);
+	olm_propertyListSet("CREATE_CAGE:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	olm_propertyListSet("CREATE_CAGE:MENU_ITEM:LABEL", "Cage Deformer", $properties);
+	olm_propertyListSet("CREATE_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	olm_propertyListSet("EDIT_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	olm_propertyListSet("EDIT_CAGE:MENU_ITEM:PROC", "olm_ui_editCageDeformer", $properties);
+	olm_propertyListSet("EDIT_CAGE:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	olm_propertyListSet("EDIT_CAGE:MENU_ITEM:LABEL", "Edit Cage Deformer", $properties);
+	olm_propertyListSet("EDIT_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	//olm_propertyListSet("ADAPT_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	//olm_propertyListSet("ADAPT_CAGE:MENU_ITEM:PROC", "olm_ui_createAdaptedCageDeformer", $properties);
+	//olm_propertyListSet("ADAPT_CAGE:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	//olm_propertyListSet("ADAPT_CAGE:MENU_ITEM:LABEL", "Adapted Cage Deformer", $properties);
+	//olm_propertyListSet("ADAPT_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	//olm_propertyListSet("EDIT_ADAPT_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	//olm_propertyListSet("EDIT_ADAPT_CAGE:MENU_ITEM:PROC", "olm_ui_editAdaptedCageDeformer", $properties);
+	//olm_propertyListSet("EDIT_ADAPT_CAGE:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	//olm_propertyListSet("EDIT_ADAPT_CAGE:MENU_ITEM:LABEL", "Edit Adapted Cage Deformer", $properties);
+	//olm_propertyListSet("EDIT_ADAPT_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	olm_propertyListSet("MVC_CAGE_UI:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE_UI:MENU_ITEM:PROC", "python(\"import MVCCageDeformer_UI\");python(\"MVCCageDeformer_UI.MVCCageDeformerUI()\")", $properties);
+	olm_propertyListSet("MVC_CAGE_UI:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE_UI:MENU_ITEM:LABEL", "Simple MVC UI", $properties);
+	olm_propertyListSet("MVC_CAGE_UI:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	olm_propertyListSet("MVC_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE:MENU_ITEM:PROC", "olm_ui_createMVCDeformer", $properties);
+	olm_propertyListSet("MVC_CAGE:MENU_ITEM:DESC", "OLM Cage Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE:MENU_ITEM:LABEL", "Simple MVC Selections", $properties);
+	olm_propertyListSet("MVC_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	olm_propertyListSet("MVC_CAGE_PAINT:MENU_ITEM:MENU", "OLM Tools>Animation", $properties);
+	olm_propertyListSet("MVC_CAGE_PAINT:MENU_ITEM:PROC", "olm_paintable_simpleMVCCageDeformer()", $properties);
+	olm_propertyListSet("MVC_CAGE_PAINT:MENU_ITEM:DESC", "Paintable Simple MVC Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE_PAINT:MENU_ITEM:LABEL", "Paintable Simple MVC Deformer", $properties);
+	olm_propertyListSet("MVC_CAGE_PAINT:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+
+	olm_propertyListSet("STAR_CAGE:MENU_ITEM:MENU", "OLM Tools>Animation>Cage Deformer", $properties);
+	olm_propertyListSet("STAR_CAGE:MENU_ITEM:PROC", "python(\"import StarCageDeformer\");python(\"StarCageDeformer.createFromSelection()\")", $properties);
+	olm_propertyListSet("STAR_CAGE:MENU_ITEM:DESC", "OLM Multi-Cage Deformer", $properties);
+	olm_propertyListSet("STAR_CAGE:MENU_ITEM:LABEL", "Multi-Cage Deformer", $properties);
+	olm_propertyListSet("STAR_CAGE:REQUIRED_PLUGIN", "OLMCageDeformer", $properties);
+	
+	return $properties;
+}

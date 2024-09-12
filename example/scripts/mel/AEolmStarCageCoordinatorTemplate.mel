@@ -1,0 +1,10 @@
+global proc AEolmStarCageCoordinatorTemplate( string $nodeName )
+{
+	editorTemplate -addExtraControls;
+	editorTemplate -suppress "input";
+	editorTemplate -suppress "caching";
+	editorTemplate -suppress "nodeState";
+	editorTemplate -suppress "cages";
+	editorTemplate -suppress "numSingleCages";
+	editorTemplate -suppress "numJointCages";	
+}

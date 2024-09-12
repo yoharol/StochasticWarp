@@ -1,0 +1,77 @@
+global proc AEolmAutoCageTransformTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+	editorTemplate -beginLayout "Reduction Parameters" -collapse false;
+	
+	editorTemplate -callCustom "ArapIterNew"
+							   "ArapIterReplace"
+							   "arapIterations";
+							   
+	editorTemplate -callCustom "ArapRegularNew"
+							   "ArapRegularReplace"
+							   "arapRegularCoeff";
+							   
+	editorTemplate -callCustom "ColorOutputNew"
+								"ColorOutputReplace"
+								"outputColor";
+								
+	editorTemplate -endLayout;
+	editorTemplate -addExtraControls;
+	editorTemplate -endScrollLayout;
+
+	// hide some unnecessary attributes
+	editorTemplate -suppress "input";
+	editorTemplate -suppress "caching";
+	editorTemplate -suppress "nodeState";		
+	editorTemplate -suppress "weightList";
+	editorTemplate -suppress "weightLists";
+	editorTemplate -suppress "map64BitIndices";
+	editorTemplate -suppress "mixedInput";
+	editorTemplate -suppress "cageMeshIn";
+	editorTemplate -suppress "cageMeshOut";
+	editorTemplate -suppress "closedObj";
+	editorTemplate -suppress "cageHandleMatrix";
+	editorTemplate -suppress "cageHandleString";
+	editorTemplate -suppress "objHandleMatrix";
+	editorTemplate -suppress "objHandleString";
+	editorTemplate -suppress "clusterIn";
+	editorTemplate -suppress "joints";
+	editorTemplate -suppress "orgCgHndMatrix";
+	editorTemplate -suppress "orgObjHndMatrix";
+	editorTemplate -suppress "orgAnchMatrix";
+	editorTemplate -suppress "close";
+}
+
+// arapIterations
+global proc ArapIterNew(string $attrName)
+{
+	intSliderGrp -label "Iterations" -field true -minValue 0 -maxValue 1000 -step 10 arapIterSliderGrp;
+	connectControl arapIterSliderGrp $attrName;
+}
+global proc ArapIterReplace( string $attrName )
+{
+   connectControl arapIterSliderGrp $attrName;
+}
+
+// arapRegularCoeff
+global proc ArapRegularNew(string $attrName)
+{
+	floatSliderGrp -label "Regular Ratio" -field true -minValue 0 -maxValue 0.02 
+					-fieldMinValue 0 -fieldMaxValue 0.1 -step 0.001 arapRegularSliderGrp;
+	connectControl arapRegularSliderGrp $attrName;
+}
+global proc ArapRegularReplace( string $attrName )
+{
+   connectControl arapRegularSliderGrp $attrName;
+}
+
+// outputColor
+global proc ColorOutputNew(string $attrName)
+{
+	checkBox -label "Output Color" colorCheckButton;
+	connectControl colorCheckButton $attrName;
+}
+global proc ColorOutputReplace( string $attrName )
+{
+   connectControl colorCheckButton $attrName;
+}

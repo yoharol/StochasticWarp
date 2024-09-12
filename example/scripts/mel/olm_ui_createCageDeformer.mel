@@ -1,0 +1,456 @@
+//////////////////////////////////////////////////////////////////////////////////////
+//
+// utility functions
+//
+//////////////////////////////////////////////////////////////////////////////////////
+global int $cage_deformer_created = 0;
+global string $cage_deformer_new_created;
+global string $cage_deformer_coord_node;
+// get selected object and cage
+global proc string[] getTwoSelected()
+{
+	string $r[];
+	string $sl[] = `ls -sl`;
+	if(size($sl)!=2)
+	{
+		confirmDialog -title "Error" -message "Please select two objects" -button "Yes" -button "No"
+			-defaultButton "Yes" -cancelButton "No" -dismissString "No";
+		$r[0] = "";
+		$r[1] = "";
+		return $r;
+	}
+	$r[0] = $sl[0];
+	$r[1] = $sl[1];
+	return $r;
+}
+
+// get connected node
+global proc string getConnectedNode(string $node, string $attr,  int $des, int $src)
+{
+	string $result = "";
+	string $nodes[] = `listConnections -d $des -s $src ($node+"."+$attr)`;
+	if(size($nodes)>0)
+		$result = $nodes[0];
+	return $result;
+}
+
+// examine whether the given mesh is triangular (1) or not (0)
+global proc int isTriangular(string $mesh)
+{
+	int $numFaces[] = `polyEvaluate -f $mesh`;
+	int $numTriangle[] = `polyEvaluate -t $mesh`;
+	if($numFaces[0] == $numTriangle[0]) return 1;
+	else return 0;
+}
+
+// connect attributes
+global proc connectAttribute(string $srcNode, string $srcAttr, string $tgtNode, string $tgtAttr)
+{
+	connectAttr ($srcNode+"."+$srcAttr) ($tgtNode+"."+$tgtAttr);
+}
+
+// disconnect attributes
+global proc disconnectAttribute(string $srcNode, string $srcAttr, string $tgtNode, string $tgtAttr)
+{
+	disconnectAttr ($srcNode+"."+$srcAttr) ($tgtNode+"."+$tgtAttr);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//
+// callback functions
+//
+//////////////////////////////////////////////////////////////////////////////////////
+// callback function to 'pick' button
+global proc cageDeformerPickup_cb(string $textFBGrp)
+{
+	string $sel[] = `ls -selection`;
+	textFieldButtonGrp -edit -text $sel[0] $textFBGrp;
+}
+
+// callback function to 'Reduce Weights' button to be checked in
+global proc reduceOn_cb()
+{
+	frameLayout -edit -enable on -collapse off weightRedFrame;
+}
+
+// callback function to 'Reduce Weights' button to be checked out
+global proc reduceOff_cb()
+{
+	frameLayout -edit -enable off -collapse on weightRedFrame;
+}
+
+// callback function to 'Mean Value' selected
+global proc mvcSelect_cb()
+{
+	//intSliderGrp -edit -enable on cageDeformerHCSideSliderGrp;
+	checkBox -edit -enable on reduceCheckButton;
+	//checkBox -edit -enable off encloseCheckButton;
+}
+
+// callback function to ''Mean Value' unselected
+global proc mvcUnselect_cb()
+{
+	intSliderGrp -edit -enable off cageDeformerHCSideSliderGrp;
+	checkBox -edit -enable off -value 0 reduceCheckButton;
+	checkBox -edit -enable on encloseCheckButton;
+	reduceOff_cb();
+}
+
+// callback function to 'Harmonic' selected
+global proc hcSelect_cb()
+{
+	intSliderGrp -edit -enable on cageDeformerHCSideSliderGrp;
+	checkBox -edit -enable on reduceCheckButton;
+	checkBox -edit -enable off encloseCheckButton;
+}
+
+// callback function to 'Harmonic' unselected
+global proc hcUnselect_cb()
+{
+	intSliderGrp -edit -enable off cageDeformerHCSideSliderGrp;
+	checkBox -edit -enable off -value 0 reduceCheckButton;
+	checkBox -edit -enable on encloseCheckButton;
+	reduceOff_cb();
+}
+
+// callback function to set text field with selected objects
+global proc setSelectToText_cb(string $objTxt, string $cageTxt)
+{
+	string $sel[] = getTwoSelected();
+	int $t_0[] = `polyEvaluate -t $sel[0]`;
+	int $t_1[] = `polyEvaluate -t $sel[1]`;
+	if($t_0[0] < $t_1[0])
+	{
+		string $ans = `confirmDialog -title "Warning" -message "Selection order may be wrong, continue?" -button "Continue" -button "Cancel"
+						     -defaultButton "Continue" -cancelButton "Cancel" -dismissString "No"`;
+		if($ans == "Cancel")
+			return;
+	}
+	string $ex_exp_obj[] = `textScrollList -q -allItems examplePoseTexts`;
+	string $ex_exp_cage[] = `textScrollList -q -allItems exampleCageTexts`;
+	if(stringArrayContains($sel[0], $ex_exp_obj) + stringArrayContains($sel[1], $ex_exp_cage) > 0)
+	{
+		confirmDialog -title "Error" -message "Object and Cage should be different from examples" -button "Yes" -button "No"
+							 -defaultButton "Yes" -cancelButton "No" -dismissString "No";
+		return;
+	}
+	textField -edit -text $sel[0] $objTxt;
+	textField -edit -text $sel[1] $cageTxt;
+}
+
+// callback function to append selected objects to
+global proc append_example_cb(string $objTexts, string $cageTexts)
+{
+	string $sel[] = getTwoSelected();
+	int $t_0[] = `polyEvaluate -t $sel[0]`;
+	int $t_1[] = `polyEvaluate -t $sel[1]`;
+	if($t_0[0] < $t_1[0])
+	{
+		string $ans = `confirmDialog -title "Warning" -message "Selection order may be wrong, continue?" -button "Continue" -button "Cancel"
+						     -defaultButton "Continue" -cancelButton "Cancel" -dismissString "No"`;
+		if($ans == "Cancel")
+			return;
+	}
+	string $ex_obj = `textField -q -text objectTextField`;
+	string $ex_cage = `textField -q -text cageTextField`;
+	if($sel[0] == $ex_obj || $sel[1] == $ex_cage)
+	{
+		confirmDialog -title "Error" -message "examples should be different from Object and Cage" -button "Yes" -button "No"
+						     -defaultButton "Yes" -cancelButton "No" -dismissString "No";
+		return;
+	}
+	string $ex_exp_obj[] = `textScrollList -q -allItems $objTexts`;
+	string $ex_exp_cage[] = `textScrollList -q -allItems $cageTexts`;
+	if(stringArrayContains($sel[0], $ex_exp_obj) + stringArrayContains($sel[1], $ex_exp_cage) > 0)
+	{
+		confirmDialog -title "Error" -message "at least one object exists" -button "Yes" -button "No"
+							 -defaultButton "Yes" -cancelButton "No" -dismissString "No";
+		return;
+	}
+	textScrollList -edit -append $sel[0] $objTexts;
+	textScrollList -edit -append $sel[1] $cageTexts;
+}
+
+// callback function to select example cage in the scroll list
+global proc select_cage_view_cb()
+{
+	int $id[] = `textScrollList -q -selectIndexedItem exampleCageTexts`;
+	textScrollList -edit -selectIndexedItem $id[0] examplePoseTexts;
+	string $sel_cage[] = `textScrollList -q -allItems exampleCageTexts`;
+	string $sel_pose[] = `textScrollList -q -allItems examplePoseTexts`;
+	select `longNameOf($sel_pose[$id[0]-1])`;
+	select -tgl `longNameOf($sel_cage[$id[0]-1])`;
+}
+
+// callback function to select example pose in the scroll list
+global proc select_obj_view_cb()
+{
+	int $id[] = `textScrollList -q -selectIndexedItem examplePoseTexts`;
+	textScrollList -edit -selectIndexedItem $id[0] exampleCageTexts;
+	string $sel_cage[] = `textScrollList -q -allItems exampleCageTexts`;
+	string $sel_pose[] = `textScrollList -q -allItems examplePoseTexts`;
+	select `longNameOf($sel_pose[$id[0]-1])`;
+	select -tgl `longNameOf($sel_cage[$id[0]-1])`;
+}
+
+// callback function to clear examples
+global proc clear_examples_cb()
+{
+	textScrollList -edit -ra exampleCageTexts;
+	textScrollList -edit -ra examplePoseTexts;
+}
+
+// callback function to remove selected item
+global proc remove_example_cb()
+{
+	int $id[] = `textScrollList -q -selectIndexedItem examplePoseTexts`;
+	textScrollList -edit -rii $id[0] exampleCageTexts;
+	textScrollList -edit -rii $id[0] examplePoseTexts;
+}
+
+global proc select_check_view_cb()
+{
+	string $out[] =`textScrollList -q -selectItem outScrollList`;
+	select $out;
+}
+
+global proc show_out_window(string $vtx[])
+{
+	if(`window -exists outVertWindow`==1)
+			deleteUI outVertWindow;
+	window -resizeToFitChildren 1 -title "Warning" outVertWindow;
+	columnLayout;
+		text ("The following vertices are outside:");
+		textScrollList -numberOfRows 16 -allowMultiSelection on -width 240 -height 160
+			-selectCommand "select_check_view_cb" outScrollList;
+		for($v in $vtx)
+			textScrollList -edit -append $v outScrollList;
+	setParent..;
+	showWindow;
+}
+
+// callback function to check where all vertices fall into the cage
+global proc check_cb()
+{
+	string $obj = `textField -q -text objectTextField`;
+	string $cage = `textField -q -text cageTextField`;
+	int $out[] = `olmHCSurCheck -cg $cage -tg $obj`;
+	int $out_num = size($out);
+	if($out_num>0)
+	{
+		string $msg = "";
+		string $vtx[];
+		for($o in $out)
+		{
+			$msg += " "+$o;
+			int $s = size($vtx);
+			$vtx[$s] = $obj+".vtx["+$o+"]";
+		}
+		show_out_window($vtx);
+	}
+	else
+		confirmDialog -title "Confirm" -message "All vertices fall in the cage."
+			-button "OK" -defaultButton "OK";
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//
+// create cage deformer
+//
+//////////////////////////////////////////////////////////////////////////////////////
+// the procedure to create a cage-based deformer
+global proc createCageDeformer_cb()
+{
+	global int $cage_deformer_created;
+	global string $cage_deformer_new_created;
+	global string $cage_deformer_coord_node;
+	int $sel = `radioButtonGrp -q -sl typeButton`;
+	string $m;
+	if($sel == 1)
+		$m = "mvc";
+	else if($sel==2)
+		$m = "hc";
+	else
+		$m = "gc";
+	string $cageDeformerNode;
+	string $cageDeformerCoordNode;
+	string $obj = `textField -q -text objectTextField`;
+	string $cage = `textField -q -text cageTextField`;
+	$obj_exist = `objExists $obj`;
+	$cage_exist = `objExists $cage`;
+	if(!$obj_exist||!$cage_exist)
+		error "pick the cage and object first";
+	int $enclosed = `checkBox -q -value encloseCheckButton`;
+	int $s = 5;
+	if($m == "hc")
+		$s = `intSliderGrp -q -value cageDeformerHCSideSliderGrp`;
+	int $isReduced = `checkBox -q -value reduceCheckButton`;
+	// do normal cage deformer
+	if($isReduced==0)
+	{
+		/*
+		Command:
+			olmCageDeformer : the command implemented in the olmCage plugin
+		Arguments:
+			-cage(-cg) : name of the cage object (string)
+			-target(-tg) : name of the target object (string)
+			-type(-t) : type of coordinates (string: "mvc", "hc" or "gc")
+			-allVertices(-al): all vertices are involved without checking inside/outside (unavaible for "hc")
+			-replace(-r) : whether or not replace the existing cage deformer (boolean: on / off)
+			-segment(-s) : only avaible for Harmonic coordinates, how many grids to split the space (2^s * 2^s * 2^s, 5 by default)
+		retrun: string array with four elements,
+		        the first is the deformer
+				the second is the coordinate node
+				the third is the duplicated original cage
+				the fourth is the duplicated original target
+		*/
+		string $res[] = `olmCageDeformer -cg $cage -tg $obj -t $m -al $enclosed -r on -sg $s`;
+		$cage_deformer_new_created = $res[0];
+		$cage_deformer_coord_node = $res[1];
+	}
+	// reduced cage deformer
+	else
+	{
+		// duplicate
+		string $orgObj[] = `duplicate $obj`;
+		string $orgCage[] = `duplicate $cage`;
+		setAttr ($orgObj[0]+".visibility") 0;
+		setAttr ($orgCage[0]+".visibility") 0;
+		// create a new deformer
+		string $def[] = `deformer -type olmReducedCage $obj`;
+		string $cageDeformerNode = $def[0];
+		$cage_deformer_new_created = $cageDeformerNode;
+		// create a new coordinate node
+		int $coord_type = `radioButtonGrp -q -sl typeButton`;
+		string $coordNode;
+		if ($m == "mvc")
+			$coordNode = `createNode olmMeanValueCoordinates`;
+		else if ($m == "hc")
+		{
+			$coordNode = `createNode olmHarmonicCoordinates`;
+			$cage_deformer_coord_node = $coordNode;
+			setAttr ($coordNode + ".segment") $s;
+			setAttr ($coordNode + ".solver") 0;
+		}
+		// create a new weight reduction node
+		string $reductionNode = `createNode olmWeightReductionNode`;
+		int $type = `optionMenu -q -sl reductionTypeMenu`;
+		float $ratio = `floatSliderGrp -q -value reductionRatioSliderGrp`;
+		int $maxLen = `intSliderGrp -q -value weightAmountSliderGrp`;
+		string $cages[] = `textScrollList -q -allItems exampleCageTexts`;
+		string $poses[] = `textScrollList -q -allItems examplePoseTexts`;
+		setAttr ($reductionNode+".reductionRatio") $ratio;
+		setAttr ($reductionNode+".reducerType") $type;
+		setAttr ($reductionNode+".maxWeightLen") $maxLen;
+		connectAttribute($orgCage[0], "worldMesh", $reductionNode, "cages[0]");
+		connectAttribute($orgObj[0], "worldMesh", $reductionNode, "poses[0]");
+		// connect attributes
+		int $len = `size($cages)`;
+		int $i;
+		for($i=0; $i<$len; $i++)
+		{
+			string $cageStr = "cages["+string($i+1)+"]";
+			string $poseStr = "poses["+string($i+1)+"]";
+			connectAttribute($cages[$i], "worldMesh", $reductionNode, $cageStr);
+			connectAttribute($poses[$i], "worldMesh", $reductionNode, $poseStr);
+		}
+		connectAttribute($orgObj[0], "worldMesh", $coordNode, "objectMesh");
+		connectAttribute($orgCage[0], "worldMesh", $coordNode, "cageMesh");
+		connectAttribute($cage, "worldMesh", $cageDeformerNode, "cageMesh");
+		connectAttribute($coordNode, "mixedOutput", $reductionNode, "mixedInput");
+		connectAttribute($reductionNode, "reducedOutput", $cageDeformerNode, "mixedInput");
+	}
+	$cage_deformer_created = 1;
+}
+
+global proc ok_cb()
+{
+	global int $cage_deformer_created;
+	global string $cage_deformer_new_created;
+	global string $cage_deformer_coord_node;
+	if($cage_deformer_created ==0)
+		createCageDeformer_cb();
+	// hide window
+	deleteUI cageDeformerWindow;
+	$cage_deformer_created = 0;
+	$cage_deformer_new_created = "";
+	$cage_deformer_coord_node = "";
+}
+// UI
+global proc olm_ui_createCageDeformer()
+{
+	if(`window -exists cageDeformerWindow`==1)
+		deleteUI cageDeformerWindow;
+	window -resizeToFitChildren 1 -title "Create Cage Deformer" cageDeformerWindow;
+	columnLayout;
+		frameLayout -label "Object and Cage" -width 400;
+			columnLayout;
+				rowLayout -numberOfColumns 2;
+					text -label "Object" -width 195 -align "left";
+					text -label "Cage" -width 195 -align "left";
+				setParent ..;
+				rowLayout -numberOfColumns 2;
+					textField -width 195 objectTextField;
+					textField -width 195 cageTextField;
+				setParent ..;
+				rowLayout -numberOfColumns 2;
+					button -label "Set" -width 80 -command "setSelectToText_cb objectTextField cageTextField";
+					button -label "Check" -width 80 -command "check_cb";
+				setParent ..;
+			setParent;
+		setParent;
+		frameLayout -label "Binding Type" -width 400;
+			columnLayout;
+				rowLayout -numberOfColumns 5;
+					radioButtonGrp -numberOfRadioButtons 3 -cw1 5
+						-labelArray3 "MeanValue" "Harmonic" "Green" typeButton;
+					radioButtonGrp -edit -select 2 -onCommand1 "mvcSelect_cb" -offCommand1 "mvcUnselect_cb"
+						-onCommand2 "hcSelect_cb" -offCommand2 "hcUnselect_cb" typeButton;
+				setParent ..;
+				intSliderGrp -label "segment" -enable on -field true -minValue 5 -maxValue 8 -value 7 cageDeformerHCSideSliderGrp;
+				rowLayout -numberOfColumns 2;
+					checkBox -label "Force All Points" -enable off -value 0 encloseCheckButton;
+					checkBox -label "Reduce Weights" -enable on -value 1 -onCommand "reduceOn_cb"
+						-offCommand "reduceOff_cb" reduceCheckButton;
+				setParent ..;
+			setParent ..;
+		setParent ..;
+		frameLayout -label "Weight Reduction" -width 400 -collapsable on -collapse off -enable on weightRedFrame;
+			columnLayout;
+				rowLayout -numberOfColumns 2;
+					text -label "Poses" -width 195 -align "left";
+					text -label "Cages" -width 195 -align "left";
+				setParent ..;
+				rowLayout -numberOfColumns 2;
+					textScrollList -numberOfRows 6 -allowMultiSelection false -width 195 -height 100
+						-selectCommand "select_obj_view_cb" examplePoseTexts;
+					textScrollList -numberOfRows 6 -allowMultiSelection false -width 195 -height 100
+						-selectCommand "select_cage_view_cb" exampleCageTexts;
+				setParent ..;
+				rowLayout -numberOfColumns 3;
+					button -label "Append" -width 80 -command "append_example_cb examplePoseTexts exampleCageTexts";
+					button -label "Remove" -width 80 -command "remove_example_cb";
+					button -label "Clear" -width 80 -command "clear_examples_cb";
+				setParent ..;
+				text -label "";
+				text -label "Parameters" -fn boldLabelFont;
+				optionMenu -label "Reduction Method" -enable 1 reductionTypeMenu;
+							menuItem -label "Largest";
+							menuItem -label "Geometry";
+							menuItem -label "Poisson";
+							menuItem -label "Improved Poisson" ;
+				optionMenu -edit -sl 2 reductionTypeMenu;
+				floatSliderGrp -label "Percentage" -field true -minValue 92.0 -maxValue 99.9
+					-fieldMinValue 92.0 -fieldMaxValue 99.9 -step 0.1 -value 98.0 reductionRatioSliderGrp;
+				intSliderGrp -label "Max Weight" -field true -minValue 8 -maxValue 30 -value 20 weightAmountSliderGrp;
+			setParent ..;
+		setParent ..;
+		rowLayout -numberOfColumns 3;
+			button -label "Create" -width 80 -command "ok_cb";
+			button -label "Apply" -width 80 -command "createCageDeformer_cb";
+			button -label "Close" -width 80 -command "deleteUI cageDeformerWindow";
+		setParent ..;
+	setParent ..;
+	showWindow;
+};
+olm_ui_createCageDeformer();

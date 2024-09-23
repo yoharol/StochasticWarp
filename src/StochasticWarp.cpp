@@ -1,30 +1,34 @@
 #include <stdio.h>
-#include <maya/MString.h>
-#include <maya/MArgList.h>
-#include <maya/MFnPlugin.h>
+
 #include <maya/MFnMesh.h>
-#include <maya/MPointArray.h>
-#include <maya/MPxCommand.h>
-#include <maya/MIOStream.h>
-#include <maya/MDagPath.h>
+#include <maya/MItSelectionList.h>
 #include <maya/MFnDagNode.h>
 #include <maya/MSelectionList.h>
 #include <maya/MGlobal.h>
+#include <maya/MFnDependencyNode.h>
+#include <maya/MFnDoubleArrayData.h>
+#include <maya/MFnGeometryFilter.h>
+#include <maya/MFnWeightGeometryFilter.h>
+#include <maya/MItGeometry.h>
+#include <maya/MPlug.h>
+#include <maya/MPlugArray.h>
+#include <maya/MPxCommand.h>
+#include <maya/MDagPath.h>
+#include <maya/MFnPlugin.h>
+#include <maya/MFnSet.h>
 
 #include <sstream>
 
 #include "StWarp/type.h"
 #include "StWarp/solver.h"
+#include "StWarp/st_deformer.h"
 
-// MPxCommand: Base class for user defined commands.
 class StochasticWarp : public MPxCommand {
  public:
   static const char* kName;
   MSelectionList selectionList;
-  // doIt: This method is called when the command is executed.
   MStatus doIt(const MArgList& args);
 
-  // creator: This method creates an instance of the command.
   static void* creator();
 };
 
@@ -33,53 +37,126 @@ const char* StochasticWarp::kName = "StochasticWarp";
 MStatus StochasticWarp::doIt(const MArgList& args) {
   MStatus status;
 
-  // Get the active selection list
   MGlobal::getActiveSelectionList(selectionList, true);
 
-  // Check if exactly two objects are selected
   if (selectionList.length() != 2) {
     MGlobal::displayError("Please select exactly two mesh objects.");
     return MS::kFailure;
   }
 
-  MDagPath dagPath;
+  MDagPath originMeshDagPath, cageMeshDagPath;
   MObject component;
-  selectionList.getDagPath(0, dagPath, component);
-  MFnMesh meshFn(dagPath, &status);
+  selectionList.getDagPath(0, originMeshDagPath, component);
+  MFnMesh meshFn(originMeshDagPath, &status);
   if (status != MS::kSuccess) {
-    MString errorMsg = dagPath.fullPathName() + " is not a mesh.";
+    MString errorMsg = originMeshDagPath.fullPathName() + " is not a mesh.";
     MGlobal::displayError(errorMsg);
     return MS::kFailure;
   }
-  selectionList.getDagPath(1, dagPath, component);
-  MFnMesh cageFn(dagPath, &status);
+  selectionList.getDagPath(1, cageMeshDagPath, component);
+  MFnMesh cageFn(cageMeshDagPath, &status);
   if (status != MS::kSuccess) {
-    MString errorMsg = dagPath.fullPathName() + " is not a mesh.";
+    MString errorMsg = cageMeshDagPath.fullPathName() + " is not a mesh.";
     MGlobal::displayError(errorMsg);
     return MS::kFailure;
   }
 
   StWarp::StoWarpSolver solver(cageFn, meshFn);
 
+  // 100: number of max steps, 100 should be enough
+  // 1e-6: define how close the sample point should be to the cage
+  // 200: number of walks, more walks will give better results
+  solver.walk_on_sphere(100, 1e-6, 200);
+
   if (solver.status != MS::kSuccess) {
     MGlobal::displayError("Failed to initialize solver.");
     return MS::kFailure;
   }
 
-  /*for (int i = 0; i < solver.n_mesh_verts; i++) {
-    std::stringstream ss;
-    ss << "Vertex " << i << ": " << solver.mesh_verts(i, 0) << " "
-       << solver.mesh_verts(i, 1) << " " << solver.mesh_verts(i, 2) << ": ";
-    MPoint p(solver.mesh_verts(i, 0), solver.mesh_verts(i, 1),
-             solver.mesh_verts(i, 2));
-    MPoint closestPoint;
-    int faceId;
-    status = cageFn.getClosestPoint(p, closestPoint, MSpace::kWorld, &faceId);
-    ss << "Closest point: " << closestPoint.x << " " << closestPoint.y << " "
-       << closestPoint.z << " Face ID: " << faceId;
-    meshFn.setPoint(i, closestPoint, MSpace::kWorld);
-    MGlobal::displayInfo(ss.str().c_str());
-  }*/
+  MFnDependencyNode deformerFn;
+  MObject deformerObj = deformerFn.create("cageDeformer", &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlug usedByPlug = deformerFn.findPlug("usedBy", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MPlug usedByElementPlug = usedByPlug.elementByLogicalIndex(0, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlugArray connectedPlugs;
+  usedByElementPlug.connectedTo(connectedPlugs, true, false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  if (connectedPlugs.length() == 0) {
+    MGlobal::displayError(
+        "Failed to find deformer set connected to the deformer.");
+    return MS::kFailure;
+  }
+
+  MObject deformerSetObj = connectedPlugs[0].node(&status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MFnSet deformerSetFn(deformerSetObj, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  status = deformerSetFn.addMember(originMeshDagPath);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MDGModifier dgMod;
+  MPlug inputPlug = deformerFn.findPlug("input", false, &status)
+                        .elementByLogicalIndex(0, &status)
+                        .child(0, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MFnDagNode originMeshDagNode(originMeshDagPath, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MPlug outMeshPlug = originMeshDagNode.findPlug("outMesh", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = dgMod.connect(outMeshPlug, inputPlug);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlug outputPlug = deformerFn.findPlug("outputGeometry", false, &status)
+                         .elementByLogicalIndex(0, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MPlug inMeshPlug = originMeshDagNode.findPlug("inMesh", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  status = dgMod.connect(outputPlug, inMeshPlug);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = dgMod.doIt();
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MFnDagNode cageMeshDagNode(cageMeshDagPath, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlug cageMeshPlug = deformerFn.findPlug("cageMesh", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlug cageOutMeshPlug = cageMeshDagNode.findPlug("outMesh", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = dgMod.connect(cageOutMeshPlug, cageMeshPlug);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = dgMod.doIt();
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MPlug weightsPlug = deformerFn.findPlug("weights", false, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MDoubleArray weightsArray(solver.n_mesh_verts * solver.n_cage_verts);
+  for (int i = 0; i < solver.n_mesh_verts; i++) {
+    for (int j = 0; j < solver.n_cage_verts; j++) {
+      weightsArray[i * solver.n_cage_verts + j] = solver.harmonic_weights(i, j);
+    }
+  }
+
+  MFnDoubleArrayData weightsDataFn;
+  MObject weightsDataObj = weightsDataFn.create(weightsArray, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = weightsPlug.setValue(weightsDataObj);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  MGlobal::displayInfo("Stochastic deformation applied successfully.");
 
   return MS::kSuccess;
 }
@@ -87,14 +164,28 @@ MStatus StochasticWarp::doIt(const MArgList& args) {
 void* StochasticWarp::creator() { return new StochasticWarp; }
 
 MStatus initializePlugin(MObject obj) {
-  // MFnPlugin: Provides methods for registering and deregistering plug-ins.
+  MStatus status;
   MFnPlugin plugin(obj, "Autodesk", "1.0", "Any");
-  plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
+
+  status =
+      plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  status = plugin.registerNode(
+      "StochaticDeformer", StochasticDeformer::id, StochasticDeformer::creator,
+      StochasticDeformer::initialize, MPxNode::kDeformerNode);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  // plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
   return MS::kSuccess;
 }
 
 MStatus uninitializePlugin(MObject obj) {
+  MStatus status;
   MFnPlugin plugin(obj);
-  plugin.deregisterCommand(StochasticWarp::kName);
+  status = plugin.deregisterNode(StochasticDeformer::id);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  // plugin.deregisterCommand(StochasticWarp::kName);
   return MS::kSuccess;
 }

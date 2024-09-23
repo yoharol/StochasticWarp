@@ -119,13 +119,13 @@ StoWarpSolver::StoWarpSolver(MFnMesh& cageFn, MFnMesh& meshFn)
 
   // !
   // walk_on_sphere(100, 1e-6, 200);
-  walk_on_sphere(100, 1e-6, 200);
+  /*walk_on_sphere(100, 1e-6, 200);
   MatxXd new_verts = harmonic_weights * cage_verts;
   {
     std::stringstream ss;
     ss << harmonic_weights << std::endl;
     MGlobal::displayInfo(ss.str().c_str());
-  }
+  }*/
 
   // for (int i = 0; i < n_mesh_verts; i++) {
   /*for (int i = 0; i < 1; i++) {
@@ -194,7 +194,6 @@ void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
     double R = 1e10;
     int steps = 0;
     int fi = -1;
-    double ct = 0;
     while (R > eps && steps < maxSteps) {
       sample_p << mp(0), mp(1), mp(2), 1.;
       double distance = closest_point_on_cage(mp, cp, fi);

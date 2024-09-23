@@ -5,33 +5,26 @@
 #include <maya/MTypeId.h>
 #include <maya/MObject.h>
 #include <maya/MPointArray.h>
-#include <maya/MIntArray.h>
 #include <Eigen/Dense>
 
-class CageDeformer : public MPxDeformerNode {
+class StochasticDeformer : public MPxDeformerNode {
  public:
-  CageDeformer();
-  virtual ~CageDeformer();
+  StochasticDeformer();
+  virtual ~StochasticDeformer();
 
   static void* creator();
   static MStatus initialize();
 
-  // The main deformation method
   virtual MStatus deform(MDataBlock& data, MItGeometry& itGeo,
                          const MMatrix& localToWorldMatrix,
                          unsigned int geomIndex);
 
-  // Unique ID for the node
   static MTypeId id;
 
-  // Attribute for the cage mesh
   static MObject aCageMesh;
-
-  // Attribute for the weights
   static MObject aWeights;
 
  private:
-  // Helper function to retrieve the weights matrix
   Eigen::MatrixXd getWeights(MDataBlock& data, unsigned int numVertices);
 };
 

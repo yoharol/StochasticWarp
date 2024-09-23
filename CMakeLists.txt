@@ -18,7 +18,7 @@ set(SOURCE_FILES
 )
 
 set(LIBRARIES
-    OpenMaya Foundation
+    OpenMaya OpenMayaAnim Foundation
 )
 
 build_plugin()

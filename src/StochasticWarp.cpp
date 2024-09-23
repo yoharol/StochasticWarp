@@ -66,7 +66,7 @@ MStatus StochasticWarp::doIt(const MArgList& args) {
     return MS::kFailure;
   }
 
-  for (int i = 0; i < solver.n_mesh_verts; i++) {
+  /*for (int i = 0; i < solver.n_mesh_verts; i++) {
     std::stringstream ss;
     ss << "Vertex " << i << ": " << solver.mesh_verts(i, 0) << " "
        << solver.mesh_verts(i, 1) << " " << solver.mesh_verts(i, 2) << ": ";
@@ -79,7 +79,7 @@ MStatus StochasticWarp::doIt(const MArgList& args) {
        << closestPoint.z << " Face ID: " << faceId;
     meshFn.setPoint(i, closestPoint, MSpace::kWorld);
     MGlobal::displayInfo(ss.str().c_str());
-  }
+  }*/
 
   return MS::kSuccess;
 }

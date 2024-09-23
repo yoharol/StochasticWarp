@@ -33,13 +33,13 @@ Vec3d generateRandomDirection() {
 StoWarpSolver::StoWarpSolver(MFnMesh& cageFn, MFnMesh& meshFn)
     : cageFn(cageFn), meshFn(meshFn) {
   MPointArray meshPoints;
-  status = meshFn.getPoints(meshPoints);
+  status = meshFn.getPoints(meshPoints, MSpace::kWorld);
   if (status != MS::kSuccess) {
     MGlobal::displayError("Failed to get mesh points.");
     return;
   }
   MPointArray cagePoints;
-  status = cageFn.getPoints(cagePoints);
+  status = cageFn.getPoints(cagePoints, MSpace::kWorld);
   if (status != MS::kSuccess) {
     MGlobal::displayError("Failed to get cage points.");
     return;
@@ -54,11 +54,13 @@ StoWarpSolver::StoWarpSolver(MFnMesh& cageFn, MFnMesh& meshFn)
   for (auto& mi : m) mi.setZero();
   cage_verts.resize(n_cage_verts, 3);
   mesh_verts.resize(n_mesh_verts, 3);
+
   for (int i = 0; i < n_cage_verts; i++) {
     cage_verts(i, 0) = cagePoints[i].x;
     cage_verts(i, 1) = cagePoints[i].y;
     cage_verts(i, 2) = cagePoints[i].z;
   }
+
   for (int i = 0; i < n_mesh_verts; i++) {
     mesh_verts(i, 0) = meshPoints[i].x;
     mesh_verts(i, 1) = meshPoints[i].y;
@@ -111,25 +113,13 @@ StoWarpSolver::StoWarpSolver(MFnMesh& cageFn, MFnMesh& meshFn)
     }
   }
 
-  /*for (int i = 0; i < n_mesh_verts; i++) {
-    Vec3d mp = mesh_verts.row(i).transpose();
-    Vec3d cp;
-    int fi = -1;
-    double distance = closest_point_on_cage(mp, cp, fi);
-    if (face_type(fi) == 0) {
-      Vec3d bary = get_tri_barycentric(cp, fi);
-      mp = tri_interpolate(bary, fi);
-    } else {
-      Vec4d bary = get_quad_barycentric(cp, fi);
-      mp = quad_interpolate(bary, fi);
-    }
-    meshFn.setPoint(i, MPoint(mp(0), mp(1), mp(2)), MSpace::kWorld);
-  }*/
-
-  walk_on_sphere(100, 1e-6, 200);
+  // !
+  // walk_on_sphere(100, 1e-6, 200);
+  walk_on_sphere(100, 1e-6, 3);
   mesh_verts = harmonic_weights * cage_verts;
   // print harmonic weights
-  for (int i = 0; i < n_mesh_verts; i++) {
+  // for (int i = 0; i < n_mesh_verts; i++) {
+  for (int i = 0; i < 1; i++) {
     Vec3d p;
     std::stringstream ss;
     ss << "vertex " << i << ": ";
@@ -141,7 +131,8 @@ StoWarpSolver::StoWarpSolver(MFnMesh& cageFn, MFnMesh& meshFn)
     mesh_verts.row(i) = p.transpose();
   }
 
-  for (int i = 0; i < n_mesh_verts; i++) {
+  // for (int i = 0; i < n_mesh_verts; i++) {
+  for (int i = 0; i < 1; i++) {
     meshFn.setPoint(
         i, MPoint(mesh_verts(i, 0), mesh_verts(i, 1), mesh_verts(i, 2)),
         MSpace::kWorld);
@@ -199,7 +190,8 @@ Vec3d StoWarpSolver::quad_interpolate(const Vec4d& w, const int fi) {
 }
 
 void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
-  for (int i = 0; i < n_mesh_verts; i++) {
+  // for (int i = 0; i < n_mesh_verts; i++) {
+  for (int i = 0; i < 1; i++) {
     Vec3d mp = mesh_verts.row(i).transpose();
     Vec3d cp;
     Vec4d sample_p;
@@ -207,15 +199,20 @@ void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
     double R = 1e10;
     int steps = 0;
     int fi = -1;
+    std::stringstream ss;
+    ss << "start pos: " << mesh_verts.row(i) << std::endl;
     double ct = 0;
     while (R > eps && steps < maxSteps) {
       sample_p << mp(0), mp(1), mp(2), 1.;
       double distance = closest_point_on_cage(mp, cp, fi);
+      ss << sample_p.transpose() << " closest point: " << cp.transpose() << " "
+         << distance << std::endl;
       R = distance;
       Vec3d dir = generateRandomDirection();
       mp = mp + dir * R;
       steps++;
     }
+    ss << "finish walking\n";
     M[i] += sample_p * sample_p.transpose();
     if (face_type[fi] == 0) {
       Vec3d bary = get_tri_barycentric(cp, fi);
@@ -225,11 +222,16 @@ void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
       }
     } else {
       Vec4d bary = get_quad_barycentric(cp, fi);
+      ss << "Sample point: " << sample_p.transpose() << " face idx: " << fi
+         << " . bary centric: " << bary.transpose() << std::endl;
       for (int j = 0; j < 4; j++) {
         int idx = quad_faces(face_idx[fi], j);
         m[i * n_cage_verts + idx] += bary(j) * sample_p;
+        ss << "add to m[" << i << "][" << idx
+           << "]: " << bary(j) * sample_p.transpose() << std::endl;
       }
     }
+    MGlobal::displayInfo(ss.str().c_str());
   }
 }
 
@@ -241,14 +243,19 @@ void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
   for (auto& Mi : M) Mi = Mi / n_walks;
   for (auto& mi : m) mi = mi / n_walks;
 
-  for (int i = 0; i < n_mesh_verts; i++) {
+  std::stringstream ss;
+  //! for (int i = 0; i < n_mesh_verts; i++) {
+  for (int i = 0; i < 1; i++) {
     Mat4d invM = M[i].inverse();
     Vec4d p;
     p << mesh_verts(i, 0), mesh_verts(i, 1), mesh_verts(i, 2), 1.;
     for (int j = 0; j < n_cage_verts; j++) {
       harmonic_weights(i, j) = p.transpose() * invM * m[i * n_cage_verts + j];
     }
+    ss << "vertex " << i << ": ";
+    ss << harmonic_weights.row(i) << std::endl;
   }
+  MGlobal::displayInfo(ss.str().c_str());
 }
 
 }  // namespace StWarp

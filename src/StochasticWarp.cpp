@@ -165,7 +165,7 @@ void* StochasticWarp::creator() { return new StochasticWarp; }
 
 MStatus initializePlugin(MObject obj) {
   MStatus status;
-  MFnPlugin plugin(obj, "Autodesk", "1.0", "Any");
+  MFnPlugin plugin(obj, "YourName", "1.0", "Any");
 
   status =
       plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
@@ -176,16 +176,26 @@ MStatus initializePlugin(MObject obj) {
       StochasticDeformer::initialize, MPxNode::kDeformerNode);
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  // plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
   return MS::kSuccess;
 }
 
 MStatus uninitializePlugin(MObject obj) {
   MStatus status;
   MFnPlugin plugin(obj);
-  status = plugin.deregisterNode(StochasticDeformer::id);
+
+  status = plugin.deregisterCommand(StochasticWarp::kName);
+  if (!status) {
+    status.perror("deregisterCommand");
+    return status;
+  }
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  // plugin.deregisterCommand(StochasticWarp::kName);
+  status = plugin.deregisterNode(StochasticDeformer::id);
+  if (!status) {
+    status.perror("deregisterNode");
+    return status;
+  }
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+
   return MS::kSuccess;
 }

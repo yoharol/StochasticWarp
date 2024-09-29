@@ -3,6 +3,7 @@
 
 #include "StWarp/type.h"
 #include <maya/MFnMesh.h>
+#include <maya/MDoubleArray.h>
 
 namespace StWarp {
 
@@ -21,6 +22,8 @@ struct StoWarpSolver {
   std::vector<Mat4d> M;
   std::vector<Vec4d> m;
   MatxXd harmonic_weights;
+
+  MDoubleArray harmonic_weights_maya;
 
   MStatus status;
 

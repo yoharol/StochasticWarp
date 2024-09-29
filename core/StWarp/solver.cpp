@@ -242,6 +242,15 @@ void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
       harmonic_weights(i, j) = p.transpose() * invM * m[i * n_cage_verts + j];
     }
   }
+
+  harmonic_weights_maya.clear();
+  harmonic_weights_maya.setLength(n_mesh_verts * n_cage_verts);
+
+  for (int i = 0; i < n_mesh_verts; i++) {
+    for (int j = 0; j < n_cage_verts; j++) {
+      harmonic_weights_maya[i * n_cage_verts + j] = harmonic_weights(i, j);
+    }
+  }
 }
 
 }  // namespace StWarp

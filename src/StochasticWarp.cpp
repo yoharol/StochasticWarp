@@ -16,12 +16,14 @@
 #include <maya/MDagPath.h>
 #include <maya/MFnPlugin.h>
 #include <maya/MFnSet.h>
+#include <maya/MDagModifier.h>
 
 #include <sstream>
 
 #include "StWarp/type.h"
 #include "StWarp/solver.h"
-#include "StWarp/st_deformer.h"
+#include "StWarp/deform_node.h"
+// #include "StWarp/st_deformer.h"
 
 class StochasticWarp : public MPxCommand {
  public:
@@ -36,6 +38,8 @@ const char* StochasticWarp::kName = "StochasticWarp";
 
 MStatus StochasticWarp::doIt(const MArgList& args) {
   MStatus status;
+
+  MGlobal::displayInfo("Starting Stochastic Coordinates computing.");
 
   MGlobal::getActiveSelectionList(selectionList, true);
 
@@ -72,91 +76,70 @@ MStatus StochasticWarp::doIt(const MArgList& args) {
     MGlobal::displayError("Failed to initialize solver.");
     return MS::kFailure;
   }
+  MGlobal::displayInfo("Walk on sphere solver complete.");
 
-  MFnDependencyNode deformerFn;
-  MObject deformerObj = deformerFn.create("cageDeformer", &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlug usedByPlug = deformerFn.findPlug("usedBy", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  MPlug usedByElementPlug = usedByPlug.elementByLogicalIndex(0, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlugArray connectedPlugs;
-  usedByElementPlug.connectedTo(connectedPlugs, true, false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  if (connectedPlugs.length() == 0) {
-    MGlobal::displayError(
-        "Failed to find deformer set connected to the deformer.");
-    return MS::kFailure;
+  //! bind the mesh
+  MString deformerCmd = "deformer -type \"myTypedDeformer\" ";
+  MString targetMeshName = originMeshDagPath.fullPathName();
+  deformerCmd += "\"" + targetMeshName + "\"";
+  MStringArray deformerResult;
+  status = MGlobal::executeCommand(deformerCmd, deformerResult);
+  if (status != MS::kSuccess || deformerResult.length() == 0) {
+    MGlobal::displayError("Failed to create myTypedDeformer node.");
+    return status;
   }
 
-  MObject deformerSetObj = connectedPlugs[0].node(&status);
+  MString deformerNodeName = deformerResult[0];
+
+  MSelectionList deformerSelection;
+  deformerSelection.add(deformerNodeName);
+  MObject deformerNodeObj;
+  deformerSelection.getDependNode(0, deformerNodeObj);
+
+  MFnDependencyNode deformerFn(deformerNodeObj);
+
+  MPlug deformerInputMeshPlug = deformerFn.findPlug("cageMesh", &status);
+  if (status != MS::kSuccess) {
+    MGlobal::displayError("Failed to find inputMesh plug on deformer.");
+    return status;
+  }
+
+  MPlug cageMeshWorldMeshPlug =
+      cageFn.findPlug("worldMesh", &status).elementByLogicalIndex(0);
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  MFnSet deformerSetFn(deformerSetObj, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  status = deformerSetFn.addMember(originMeshDagPath);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MFnDagNode cageMeshFn(cageFn.dagPath(), &status);
+  MPlug cageMeshOutMeshPlug = cageMeshFn.findPlug("outMesh", &status);
+  if (status != MS::kSuccess) {
+    MGlobal::displayError("Failed to find worldMesh plug on cage mesh.");
+    return status;
+  }
 
-  MDGModifier dgMod;
-  MPlug inputPlug = deformerFn.findPlug("input", false, &status)
-                        .elementByLogicalIndex(0, &status)
-                        .child(0, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  MFnDagNode originMeshDagNode(originMeshDagPath, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  MPlug outMeshPlug = originMeshDagNode.findPlug("outMesh", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MDGModifier dgModifier;
+  status = dgModifier.connect(cageMeshWorldMeshPlug, deformerInputMeshPlug);
+  if (status != MS::kSuccess) {
+    MGlobal::displayError("Failed to connect cage mesh to deformer.");
+    return status;
+  }
 
-  status = dgMod.connect(outMeshPlug, inputPlug);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlug outputPlug = deformerFn.findPlug("outputGeometry", false, &status)
-                         .elementByLogicalIndex(0, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  MPlug inMeshPlug = originMeshDagNode.findPlug("inMesh", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-  status = dgMod.connect(outputPlug, inMeshPlug);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  status = dgMod.doIt();
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MFnDagNode cageMeshDagNode(cageMeshDagPath, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlug cageMeshPlug = deformerFn.findPlug("cageMesh", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlug cageOutMeshPlug = cageMeshDagNode.findPlug("outMesh", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  status = dgMod.connect(cageOutMeshPlug, cageMeshPlug);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  status = dgMod.doIt();
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MPlug weightsPlug = deformerFn.findPlug("weights", false, &status);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
-
-  MDoubleArray weightsArray(solver.n_mesh_verts * solver.n_cage_verts);
-  for (int i = 0; i < solver.n_mesh_verts; i++) {
-    for (int j = 0; j < solver.n_cage_verts; j++) {
-      weightsArray[i * solver.n_cage_verts + j] = solver.harmonic_weights(i, j);
-    }
+  status = dgModifier.doIt();
+  if (status != MS::kSuccess) {
+    MGlobal::displayError("Failed to execute DG modifier.");
+    return status;
   }
 
   MFnDoubleArrayData weightsDataFn;
-  MObject weightsDataObj = weightsDataFn.create(weightsArray, &status);
+  MObject weightsDataObj =
+      weightsDataFn.create(solver.harmonic_weights_maya, &status);
+  CHECK_MSTATUS_AND_RETURN_IT(status);
+  MPlug deformerWeightsPlug = deformerFn.findPlug("stweights", &status);
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  status = weightsPlug.setValue(weightsDataObj);
+  // iterate over weightsDataFn and print values
+  status = deformerWeightsPlug.setValue(weightsDataObj);
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  MGlobal::displayInfo("Stochastic deformation applied successfully.");
+  MGlobal::displayInfo("Cage deformer created.");
 
   return MS::kSuccess;
 }
@@ -170,11 +153,15 @@ MStatus initializePlugin(MObject obj) {
   status =
       plugin.registerCommand(StochasticWarp::kName, StochasticWarp::creator);
   CHECK_MSTATUS_AND_RETURN_IT(status);
-
   status = plugin.registerNode(
-      "StochaticDeformer", StochasticDeformer::id, StochasticDeformer::creator,
-      StochasticDeformer::initialize, MPxNode::kDeformerNode);
-  CHECK_MSTATUS_AND_RETURN_IT(status);
+      "myTypedDeformer", MyTypedDeformer::id, MyTypedDeformer::creator,
+      MyTypedDeformer::initialize, MPxNode::kDeformerNode);
+  if (!status) {
+    status.perror("registerNode");
+  }
+  if (!status) {
+    status.perror("registerNode");
+  }
 
   return MS::kSuccess;
 }
@@ -190,12 +177,17 @@ MStatus uninitializePlugin(MObject obj) {
   }
   CHECK_MSTATUS_AND_RETURN_IT(status);
 
-  status = plugin.deregisterNode(StochasticDeformer::id);
+  status = plugin.deregisterNode(MyTypedDeformer::id);
   if (!status) {
     status.perror("deregisterNode");
-    return status;
   }
   CHECK_MSTATUS_AND_RETURN_IT(status);
+
+  // status = plugin.deregisterNode(StochasticDeformer::id);
+  // if (!status) {
+  //   status.perror("deregisterNode");
+  //   return status;
+  // }
 
   return MS::kSuccess;
 }

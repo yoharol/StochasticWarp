@@ -7,3 +7,5 @@
 - Messages will be shown after the binding is complete. 
 
 ## Parameter Modifying
+
+[Setting walk-on-sphere cycles](https://github.com/yoharol/StochasticWarp/blob/73e3f292a8aa81fe6516ea9018f21d2586c32b71/src/StochasticWarp.cpp#L73)

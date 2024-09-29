@@ -1,5 +1,7 @@
 # Stochastic Harmonic Coordinates in Maya
 
+<img src="Untitled.png" alt="drawing" width="500"/>
+
 ## Usage 
 
 - Select two mesh objects, the first is the original mesh to be deformed, and the second is the cage mesh. 

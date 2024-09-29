@@ -12,6 +12,7 @@
 #include "Eigen/Dense"
 #include "StWarp/type.h"
 #include "StWarp/barycentric.h"
+#include "StWarp/timer.h"
 
 namespace StWarp {
 
@@ -186,6 +187,7 @@ Vec3d StoWarpSolver::quad_interpolate(const Vec4d& w, const int fi) {
 }
 
 void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
+#pragma omp parallel for
   for (int i = 0; i < n_mesh_verts; i++) {
     Vec3d mp = mesh_verts.row(i).transpose();
     Vec3d cp;
@@ -227,6 +229,7 @@ void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
 }
 
 void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
+  ScopedTimer timer("walk_on_sphere");
   for (int i = 0; i < n_walks; i++) {
     walk_on_sphere_single_step(maxSteps, eps);
   }
@@ -234,6 +237,7 @@ void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
   // for (auto& Mi : M) Mi = Mi / n_walks;
   // for (auto& mi : m) mi = mi / n_walks;
 
+#pragma omp parallel for
   for (int i = 0; i < n_mesh_verts; i++) {
     Mat4d invM = M[i].inverse();
     Vec4d p;
@@ -251,6 +255,8 @@ void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
       harmonic_weights_maya[i * n_cage_verts + j] = harmonic_weights(i, j);
     }
   }
+
+  timer.print();
 }
 
 }  // namespace StWarp

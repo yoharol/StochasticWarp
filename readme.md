@@ -28,11 +28,11 @@ Walk-on-sphere method can be referred to the [monte carol geometry processing](h
 A minimum c++ example is listed on the project page.
 
 The sampling process can be summarized as:
-1. Start from a vertex \(\mathbf{u}_i\)
-2. Compute the closest distance \(R\) from \(\mathbf{u}_i\) to the cage ([source code](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L140))
-3. Create a sphere centralized at vertex \(\mathbf{u}_i\)  with radius \(R\)
-4. Randomly choose a point  \(\mathbf{u}_{i+1}\)
-5. Repeat from step 1 until  \(\mathbf{u}_0\) is close enough to the mesh point
+1. Start from a vertex $\mathbf{u}_i$
+2. Compute the closest distance $R$ from $\mathbf{u}_i$ to the cage ([source code](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L140))
+3. Create a sphere centralized at vertex $\mathbf{u}_i$  with radius $R$
+4. Randomly choose a point  $\mathbf{u}_{i+1}$
+5. Repeat from step 1 until  $\mathbf{u}_0$ is close enough to the mesh point
 
 We repeat K points from a single vertex. Then, from a vertex on mesh $\mathbf{x}_i$, we can find a sample point $\mathbf{y}_{ik}$ in sampling iteration $k\in\{1, 2, \dots, K\}$.
 

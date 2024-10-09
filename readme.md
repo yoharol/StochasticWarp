@@ -53,6 +53,8 @@ In source code, we summarize $\sum_k\mathbf{g}\_{ik}\mathbf{g}\_{ik}^T$ in [M](h
 
 ## Evaluation
 
+The following performance statistics are evaluated on a Intel(R) Core(TM) i7-5820K CPU with 5 cores, enabling 12 threads for OpenMP parallization.
+
 | Number of Walks (n) | Time (ms) for V=92, F=6 | Time (ms) for V=382, F=6 | Time (ms) for V=382, F=24 |
 | ------------------- | ----------------------- | ------------------------ | ------------------------- |
 | 100                 | 167                     | 655                      | 1484                      |

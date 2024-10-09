@@ -213,22 +213,22 @@ void StoWarpSolver::walk_on_sphere_single_step(int maxSteps, double eps) {
       }
     } else {
       Vec4d bary = get_quad_barycentric(cp, fi);
-      Vec4d testv;
-      Vec4d testcv;
-      testv.setZero();
       for (int j = 0; j < 4; j++) {
         int idx = quad_faces(face_idx[fi], j);
         m[i * n_cage_verts + idx] += bary(j) * sample_p;
-
-        testcv << cage_verts(idx, 0), cage_verts(idx, 1), cage_verts(idx, 2),
-            1.;
-        testv += bary(j) * testcv;
       }
     }
   }
 }
 
 void StoWarpSolver::walk_on_sphere(int maxSteps, double eps, int n_walks) {
+  int total_threads;
+#pragma omp parallel reduction(+ : total_threads)
+  { total_threads++; }
+  std::stringstream ss;
+  ss << "Total threads: " << total_threads;
+  MGlobal::displayInfo(ss.str().c_str());
+
   ScopedTimer timer("walk_on_sphere");
   for (int i = 0; i < n_walks; i++) {
     walk_on_sphere_single_step(maxSteps, eps);

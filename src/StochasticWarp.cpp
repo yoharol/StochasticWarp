@@ -17,6 +17,7 @@
 #include <maya/MFnPlugin.h>
 #include <maya/MFnSet.h>
 #include <maya/MDagModifier.h>
+#include <maya/MArgList.h>
 
 #include <sstream>
 
@@ -70,7 +71,17 @@ MStatus StochasticWarp::doIt(const MArgList& args) {
   // 100: number of max steps, 100 should be enough
   // 1e-6: define how close the sample point should be to the cage
   // 200: number of walks, more walks will give better results
-  solver.walk_on_sphere(100, 1e-6, 200);
+  int n_walks = 200;
+  if (args.length() > 0) {
+    n_walks = args.asInt(0);
+    if (status != MS::kSuccess) {
+      MGlobal::displayError(
+          "Invalid argument for number of walks. Using default value 200.");
+      n_walks = 200;
+    }
+  }
+
+  solver.walk_on_sphere(100, 1e-6, n_walks);
 
   if (solver.status != MS::kSuccess) {
     MGlobal::displayError("Failed to initialize solver.");

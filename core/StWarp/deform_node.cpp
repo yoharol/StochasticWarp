@@ -62,7 +62,6 @@ MStatus MyTypedDeformer::deform(MDataBlock& dataBlock, MItGeometry& iter,
   MFnDoubleArrayData weightsArrayData(weightsObj);
   MDoubleArray weightsArray = weightsArrayData.array();
 
-  unsigned int totalWeights = weightsArray.length();
   unsigned int cage_points_count = cagePoints.length();
 
   MDataHandle envData = dataBlock.inputValue(envelope, &status);

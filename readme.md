@@ -38,11 +38,11 @@ We repeat K points from a single vertex. Then, from a vertex on mesh $\mathbf{x}
 
 The interpolation weights of any point on cage mesh is already known. Suppose we focus on a cage vertex $\mathbf{v}$, its weights on $\mathbf{y}\_{ik}$ is $\phi\_{ik}$. We compute this weights from barycentric coordinates of [triangle face](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L155) and [quad face](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L171). Meanwhile, we convert each point $\mathbf{y}_{ik}$ into homogeneous coordinates
 
-$$\mathbf{g}_{ik} = \begin{pmatrix}\mathbf{y}_{ik} \\ 1\end{pmatrix}$$
+$$\mathbf{g}\_{ik} = \begin{pmatrix}\mathbf{y}\_{ik} \\ 1\end{pmatrix}$$
 
 Then, we can compute the weights of cage vertex $\mathbf{v}$ on mesh vertex $\mathbf{x}_i$ by
 
-$$\phi_{vi} = \mathbf{x}_i^T \left(\sum_k\mathbf{g}_{ik}\mathbf{g}_{ik}^T\right)^{-1}\left(\sum_k \phi_{ik}\mathbf{g}_{ik}\right)$$
+$$\phi\_{vi} = \mathbf{x}\_i^T \left(\sum\_k\mathbf{g}\_{ik}\mathbf{g}\_{ik}^T\right)^{-1}\left(\sum\_k \phi\_{ik}\mathbf{g}\_{ik}\right)$$
 
 In source code, we summarize $\sum_k\mathbf{g}\_{ik}\mathbf{g}\_{ik}^T$ in [M](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L207), and $\sum_k \phi\_{ik}\mathbf{g}\_{ik}$ in [m](https://github.com/yoharol/StochasticWarp/blob/06f9ef277271109a525877a7cd8151c9e78638ce/core/StWarp/solver.cpp#L221).
 

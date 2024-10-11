@@ -10,7 +10,7 @@ It computes harmonic coordinates by walk-on-sphere method.
 ## Usage 
 
 - Select two mesh objects, the first is the original mesh to be deformed, and the second is the cage mesh. 
-- After the two mesh is selected, type the command 'StochasticWarp'.
+- After the two mesh is selected, type the command 'StochasticWarp N'. N is number of walks. For example, "StochasticWarp 400" runs 400 iterations of walk-on-sphere method.
 - Messages will be shown after the binding is complete. 
 
 ## Parameter Modifying
